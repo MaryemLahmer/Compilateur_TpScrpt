@@ -33,3 +33,22 @@ let rec generate_js = function
   | EBinOp (op, e1, e2) -> generate_js e1 ^ " " ^ op ^ " " ^ generate_js e2
   | _ -> ""
 
+
+  (* Vérification de portée pour un programme complet *)
+let rec check_scope_program env (program : Ast.program) =
+  List.iter (fun decl ->
+    match decl with
+    | DFunction (name, args, _, body) ->
+        (* Ajoutez les arguments de la fonction à l'environnement *)
+        let env_with_args = List.fold_left (fun acc (arg_name, _) -> arg_name :: acc) env args in
+        (* Vérifiez la portée dans le corps de la fonction *)
+        List.iter (check_scope env_with_args) body
+    | DVar (name, _, Some expr) ->
+        (* Vérifiez l'expression d'initialisation *)
+        check_scope env expr
+    | DVar (_, _, None) ->
+        (* Pas d'expression d'initialisation, rien à vérifier *)
+        ()
+    | _ -> ()
+  ) program
+  
