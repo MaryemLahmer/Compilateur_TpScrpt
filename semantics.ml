@@ -1,5 +1,6 @@
 (* semantics.ml *)
 open Ast
+open List
 
 (* vérification de portée*)
 exception ScopeError of string

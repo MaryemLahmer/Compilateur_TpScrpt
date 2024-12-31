@@ -6,8 +6,9 @@
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENT
+%token FUNCTION RETURN LPAREN RPAREN LBRACE RBRACE SEMICOLON
 %token EQ PLUS MINUS TIMES DIV
-%token IF ELSE SEMICOLON LPAREN RPAREN EOF
+%token IF ELSE EOF
 
 %start program
 %type <Ast.program> program
@@ -22,7 +23,8 @@ declaration_list:
   | declaration SEMICOLON declaration_list { $1 :: $3 }
 
 declaration:
-  | "function" IDENT LPAREN RPAREN "{" instruction_list "}" { DFunction ($2, [], None, $6) }
+  | FUNCTION IDENT LPAREN RPAREN LBRACE instruction_list RBRACE
+      { DFunction ($2, [], None, $6) }
 
 instruction_list:
   | instruction { [$1] }
@@ -32,8 +34,7 @@ instruction:
   | expression { IExpr $1 }
   | IF LPAREN expression RPAREN instruction ELSE instruction { IIf ($3, $5, Some $7) }
   | IF LPAREN expression RPAREN instruction { IIf ($3, $5, None) }
-  | "return" expression { IReturn (Some $2) }
-
+  | RETURN expression { IReturn (Some $2) }
 expression:
   | INT { EConstInt $1 }
   | BOOL { EConstBool $1 }

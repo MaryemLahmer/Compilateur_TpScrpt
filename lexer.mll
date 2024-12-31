@@ -23,6 +23,10 @@ rule tokenize = parse
   | "-" { MINUS }
   | "*" { TIMES }
   | "/" { DIV }
+  | "function" { FUNCTION }
+  | "return" { RETURN }
+  | "{" { LBRACE }
+  | "}" { RBRACE }
   | "if" { IF }
   | "else" { ELSE }
   | ";" { SEMICOLON }
