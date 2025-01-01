@@ -1,110 +1,160 @@
-(* semantics.ml *)
 open Ast
-open List
 
-(* Vérification de portée *)
+(* Exceptions *)
 exception ScopeError of string
-
-let rec check_scope_expression env = function
-| EConstInt _ | EConstBool _ | EConstString _ | EIdent _ -> ()
-| EBinOp (_, e1, e2) ->
-    (* Vérifie les sous-expressions dans une opération binaire *)
-    check_scope_expression env e1;
-    check_scope_expression env e2
-| EUnaryOp (_, e) ->
-    (* Vérifie l'expression dans une opération unaire *)
-    check_scope_expression env e
-| EArray exprs ->
-    (* Vérifie chaque élément dans un tableau *)
-    List.iter (check_scope_expression env) exprs
-| EObject fields ->
-    (* Vérifie chaque champ dans un objet *)
-    List.iter (fun (_, e) -> check_scope_expression env e) fields
-| EAccess (e, _) -> check_scope_expression env e
-| ECall (e, args) ->
-    (* Vérifie l'expression de fonction et les arguments *)
-    check_scope_expression env e;
-    List.iter (check_scope_expression env) args
-
-and check_scope_instruction env = function
-| IExpr e ->
-    (* Vérifie l'expression contenue dans l'instruction IExpr *)
-    check_scope_expression env e;
-    env
-| IVarDecl (name, _, Some expr) ->
-    (* Vérifie l'expression d'initialisation et ajoute la variable à l'environnement *)
-    check_scope_expression env expr;
-    name :: env
-| IVarDecl (name, _, None) ->
-    (* Ajoute la variable à l'environnement sans initialisation *)
-    name :: env
-| IBlock instructions ->
-    (* Vérifie les instructions dans un bloc *)
-    let final_env = List.fold_left 
-      (fun acc instr -> check_scope_instruction acc instr) 
-      env 
-      instructions
-    in final_env
-| IIf (cond, then_branch, Some else_branch) ->
-    (* Vérifie la condition et les branches then/else *)
-    check_scope_expression env cond;
-    let env_after_then = check_scope_instruction env then_branch in
-    check_scope_instruction env_after_then else_branch
-| IIf (cond, then_branch, None) ->
-    (* Vérifie la condition et la branche then uniquement *)
-    check_scope_expression env cond;
-    check_scope_instruction env then_branch
-| IWhile (cond, body) ->
-    (* Vérifie la condition et le corps de la boucle *)
-    check_scope_expression env cond;
-    check_scope_instruction env body
-| IReturn (Some expr) ->
-    (* Vérifie l'expression de retour *)
-    check_scope_expression env expr;
-    env
-| IReturn None ->
-    (* Retour sans expression, pas de vérification nécessaire *)
-    env
-
-(* Vérification des types *)
 exception TypeError of string
 
+(* Environment type *)
+type env = {
+  variables: (string * type_ option) list;
+  functions: (string * ((string * type_ option) list * type_ option)) list;
+}
+
+(* Create an empty environment *)
+let empty_env = {
+  variables = [];
+  functions = [];
+}
+
+(* Add variable to environment *)
+let add_variable env name typ =
+  { env with variables = (name, typ) :: env.variables }
+
+(* Add function to environment *)
+let add_function env name params ret_type =
+  { env with functions = (name, (params, ret_type)) :: env.functions }
+
+(* Check scope for expressions *)
+let rec check_scope_expression env = function
+  | EConstInt _ | EConstBool _ | EConstString _ -> ()
+  | EIdent name ->
+      if not (List.exists (fun (var_name, _) -> var_name = name) env.variables) then
+        raise (ScopeError ("Undefined variable: " ^ name))
+  | EBinOp (_, e1, e2) ->
+      check_scope_expression env e1;
+      check_scope_expression env e2
+  | EUnaryOp (_, e) ->
+      check_scope_expression env e
+  | EArray exprs ->
+      List.iter (check_scope_expression env) exprs
+  | EObject fields ->
+      List.iter (fun (_, e) -> check_scope_expression env e) fields
+  | EAccess (e, _) ->
+      check_scope_expression env e
+  | ECall (e, args) ->
+      check_scope_expression env e;
+      List.iter (check_scope_expression env) args
+
+(* Check scope for instructions *)
+let rec check_scope_instruction env = function
+  | IExpr e ->
+      check_scope_expression env e;
+      env
+  | IVarDecl (name, typ, expr_opt) ->
+      let env = 
+        match expr_opt with
+        | Some expr -> 
+            check_scope_expression env expr;
+            add_variable env name typ
+        | None -> 
+            add_variable env name typ
+      in
+      env
+  | IBlock instrs ->
+      List.fold_left (fun acc instr -> check_scope_instruction acc instr) env instrs
+  | IIf (cond, then_branch, else_opt) ->
+      check_scope_expression env cond;
+      let env = check_scope_instruction env then_branch in
+      (match else_opt with
+       | Some else_branch -> check_scope_instruction env else_branch
+       | None -> env)
+  | IWhile (cond, body) ->
+      check_scope_expression env cond;
+      check_scope_instruction env body
+  | IReturn expr_opt ->
+      (match expr_opt with
+       | Some expr -> check_scope_expression env expr
+       | None -> ());
+      env
+
+(* Check scope for declarations *)
+let check_scope_declaration env = function
+  | DFunction (name, params, ret_type, body) ->
+      let env = add_function env name params ret_type in
+      let env = 
+        List.fold_left
+          (fun acc (param_name, param_type) -> add_variable acc param_name param_type)
+          env
+          params
+      in
+      List.fold_left (fun acc instr -> check_scope_instruction acc instr) env body
+  | DVar (name, typ, expr_opt) ->
+      let env =
+        match expr_opt with
+        | Some expr -> 
+            check_scope_expression env expr;
+            add_variable env name typ
+        | None -> 
+            add_variable env name typ
+      in
+      env
+  | DTypeAlias _ -> env
+
+(* Infer the type of an expression *)
 let rec infer_type env = function
-| EConstInt _ -> TInt
-| EConstBool _ -> TBool
-| EBinOp ("+", e1, e2) ->
-    let t1 = infer_type env e1 in
-    let t2 = infer_type env e2 in
-    if t1 = TInt && t2 = TInt then TInt
-    else raise (TypeError "Type mismatch in addition")
-| _ -> TAny
+  | EConstInt _ -> TInt
+  | EConstBool _ -> TBool
+  | EConstString _ -> TString
+  | EIdent name ->
+      (try 
+         match List.assoc name env.variables with
+         | Some t -> t
+         | None -> TAny
+       with Not_found -> raise (TypeError ("Undefined variable: " ^ name)))
+  | EBinOp (op, e1, e2) ->
+      let t1 = infer_type env e1 in
+      let t2 = infer_type env e2 in
+      (match op, t1, t2 with
+       | ("+"|"-"|"*"|"/"), TInt, TInt -> TInt
+       | _ -> raise (TypeError "Invalid operator for types"))
+  | EUnaryOp ("-", e) ->
+      let t = infer_type env e in
+      if t = TInt then TInt
+      else raise (TypeError "Unary minus requires integer")
+  | EArray [] -> TArray TAny
+  | EArray (e::es) ->
+      let t = infer_type env e in
+      if List.for_all (fun e' -> infer_type env e' = t) es
+      then TArray t
+      else raise (TypeError "Array elements must have same type")
+  | EObject fields ->
+      TObject (List.map (fun (name, expr) -> (name, infer_type env expr)) fields)
+  | EAccess (e, field) ->
+      (match infer_type env e with
+       | TObject fields ->
+           (try List.assoc field fields
+            with Not_found -> raise (TypeError ("Unknown field: " ^ field)))
+       | _ -> raise (TypeError "Field access requires object"))
+  | ECall (_, _) -> TAny  (* Simplified type checking for function calls *)
 
-(* Génération de JavaScript *)
-let rec generate_js = function
-| EConstInt n -> string_of_int n
-| EConstBool b -> string_of_bool b
-| EBinOp (op, e1, e2) -> generate_js e1 ^ " " ^ op ^ " " ^ generate_js e2
-| _ -> ""
-
-(* Vérification de portée pour un programme complet *)
-let check_scope_program env (program : Ast.program) =
+(* Type check a program *)
+let type_check_program program =
+  let env = empty_env in
   List.iter (fun decl ->
     match decl with
-    | DFunction (name, args, _, body) ->
-        (* Ajouter les arguments au nouvel environnement *)
-        let env_with_args = 
-          List.fold_left (fun acc (arg_name, _) -> arg_name :: acc) env args 
-        in
-        (* Vérifier la portée dans le corps de la fonction *)
-        ignore (List.fold_left 
-          (fun acc instr -> check_scope_instruction acc instr) 
-          env_with_args 
-          body)
-    | DVar (name, _, Some expr) ->
-        (* Vérifier l'expression d'initialisation *)
-        check_scope_expression env expr
-    | DVar (_, _, None) ->
-        (* Pas d'expression d'initialisation, rien à vérifier *)
-        ()
-    | _ -> ()
-  ) program
+    | DFunction (name, params, ret_type, body) ->
+        let env = add_function env name params ret_type in
+        List.iter (fun instr ->
+          match instr with
+          | IReturn (Some e) ->
+              let t = infer_type env e in
+              (match ret_type with
+               | Some expected when t <> expected ->
+                   raise (TypeError "Return type mismatch")
+               | _ -> ())
+          | _ -> ()) body
+    | _ -> ()) program
+
+(* Check scope for the entire program *)
+let check_scope_program program =
+  ignore (List.fold_left check_scope_declaration empty_env program)

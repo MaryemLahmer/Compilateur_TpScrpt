@@ -1,18 +1,23 @@
 type token =
   | INT of (
-# 6 "parser.mly"
+# 7 "parser.mly"
         int
 # 6 "parser.mli"
 )
   | BOOL of (
-# 7 "parser.mly"
+# 8 "parser.mly"
         bool
 # 11 "parser.mli"
 )
   | IDENT of (
-# 8 "parser.mly"
+# 9 "parser.mly"
         string
 # 16 "parser.mli"
+)
+  | STRING of (
+# 9 "parser.mly"
+        string
+# 21 "parser.mli"
 )
   | FUNCTION
   | RETURN
@@ -28,6 +33,7 @@ type token =
   | DIV
   | IF
   | ELSE
+  | WHILE
   | EOF
 
 val program :
