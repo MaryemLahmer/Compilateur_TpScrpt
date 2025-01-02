@@ -1,8 +1,10 @@
 open Ast
 
 (* Exceptions *)
-exception ScopeError of string
+(* semantics.mli *)
 exception TypeError of string
+exception ScopeError of string
+
 
 (* Environment type *)
 type env = {

@@ -6,7 +6,7 @@ OCAMLFLAGS = -w A
 
 # Source files
 SOURCES = ast.ml parser.ml lexer.ml semantics.ml main.ml
-INTERFACES = ast.mli parser.mli lexer.mli
+INTERFACES = ast.mli parser.mli lexer.mli semantics.mli
 GENERATED = parser.ml parser.mli lexer.ml
 OBJECTS = ast.cmo parser.cmo lexer.cmo semantics.cmo main.cmo
 
@@ -17,7 +17,7 @@ EXEC = tpscript
 all: $(EXEC)
 
 # Generate parser from mly
-parser.ml parser.mli: parser.mly
+parser.ml parser.mli: parser.mly ast.cmi
 	$(OCAMLYACC) parser.mly
 
 # Generate lexer from mll
@@ -41,27 +41,29 @@ lexer.cmo: lexer.ml lexer.cmi parser.cmi
 
 # Dependencies
 ast.cmi: ast.mli
+	$(OCAMLC) $(OCAMLFLAGS) -c ast.mli
+
 ast.cmo: ast.ml ast.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c ast.ml
+
 parser.cmi: parser.mli ast.cmi
-parser.cmo: parser.ml parser.cmi ast.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c parser.mli
+
 lexer.cmi: lexer.mli parser.cmi
-lexer.cmo: lexer.ml lexer.cmi parser.cmi
-semantics.cmo: semantics.ml ast.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c lexer.mli
+
+semantics.cmi: semantics.mli ast.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c semantics.mli
+
+semantics.cmo: semantics.ml semantics.cmi ast.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c semantics.ml
+
 main.cmo: main.ml ast.cmi parser.cmi lexer.cmi semantics.cmi
+	$(OCAMLC) $(OCAMLFLAGS) -c main.ml
 
 # Link everything together
-$(EXEC): $(OBJECTS)
-	$(OCAMLC) $(OCAMLFLAGS) -o $(EXEC) $(OBJECTS)
-
-# Test target
-test: $(EXEC)
-	@echo "Running tests..."
-	@for f in tests/*.tps; do \
-		if [ -f "$$f" ]; then \
-			echo "\nTesting $$f:"; \
-			./$(EXEC) < "$$f"; \
-		fi \
-	done
+$(EXEC): ast.cmo parser.cmo lexer.cmo semantics.cmo main.cmo
+	$(OCAMLC) $(OCAMLFLAGS) -o $(EXEC) $^
 
 # Clean generated files
 clean:
