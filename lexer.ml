@@ -1,7 +1,7 @@
 # 1 "lexer.mll"
  
-  open Parser
-  exception Error of string
+open Parser
+exception Error of string
 
 # 7 "lexer.ml"
 let __ocaml_lex_tables = {
@@ -591,137 +591,137 @@ and __ocaml_lex_tokenize_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
 # 13 "lexer.mll"
-                ( tokenize lexbuf )
+              ( tokenize lexbuf )
 # 596 "lexer.ml"
 
   | 1 ->
 # 14 "lexer.mll"
-                        ( tokenize lexbuf )
+                      ( tokenize lexbuf )
 # 601 "lexer.ml"
 
   | 2 ->
 # 15 "lexer.mll"
-                                         ( tokenize lexbuf )
+                                       ( tokenize lexbuf )
 # 606 "lexer.ml"
 
   | 3 ->
 let
 # 16 "lexer.mll"
-              s
+            s
 # 612 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 16 "lexer.mll"
-                ( STRING (String.sub s 1 (String.length s - 2)) )
+              ( STRING (String.sub s 1 (String.length s - 2)) )
 # 616 "lexer.ml"
 
   | 4 ->
 # 17 "lexer.mll"
-           ( BOOL true )
+         ( BOOL true )
 # 621 "lexer.ml"
 
   | 5 ->
 # 18 "lexer.mll"
-            ( BOOL false )
+          ( BOOL false )
 # 626 "lexer.ml"
 
   | 6 ->
 let
 # 19 "lexer.mll"
-              n
+            n
 # 632 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 19 "lexer.mll"
-                ( INT (int_of_string n) )
+              ( INT (int_of_string n) )
 # 636 "lexer.ml"
 
   | 7 ->
 let
 # 20 "lexer.mll"
-             id
+           id
 # 642 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 20 "lexer.mll"
-                ( IDENT id )
+              ( IDENT id )
 # 646 "lexer.ml"
 
   | 8 ->
 # 21 "lexer.mll"
-        ( EQ )
+      ( EQ )
 # 651 "lexer.ml"
 
   | 9 ->
 # 22 "lexer.mll"
-        ( PLUS )
+      ( PLUS )
 # 656 "lexer.ml"
 
   | 10 ->
 # 23 "lexer.mll"
-        ( MINUS )
+      ( MINUS )
 # 661 "lexer.ml"
 
   | 11 ->
 # 24 "lexer.mll"
-        ( TIMES )
+      ( TIMES )
 # 666 "lexer.ml"
 
   | 12 ->
 # 25 "lexer.mll"
-        ( DIV )
+      ( DIV )
 # 671 "lexer.ml"
 
   | 13 ->
 # 26 "lexer.mll"
-               ( FUNCTION )
+             ( FUNCTION )
 # 676 "lexer.ml"
 
   | 14 ->
 # 27 "lexer.mll"
-             ( RETURN )
+           ( RETURN )
 # 681 "lexer.ml"
 
   | 15 ->
 # 28 "lexer.mll"
-        ( LBRACE )
+      ( LBRACE )
 # 686 "lexer.ml"
 
   | 16 ->
 # 29 "lexer.mll"
-        ( RBRACE )
+      ( RBRACE )
 # 691 "lexer.ml"
 
   | 17 ->
 # 30 "lexer.mll"
-        ( LPAREN )
+      ( LPAREN )
 # 696 "lexer.ml"
 
   | 18 ->
 # 31 "lexer.mll"
-        ( RPAREN )
+      ( RPAREN )
 # 701 "lexer.ml"
 
   | 19 ->
 # 32 "lexer.mll"
-         ( IF )
+       ( IF )
 # 706 "lexer.ml"
 
   | 20 ->
 # 33 "lexer.mll"
-           ( ELSE )
+         ( ELSE )
 # 711 "lexer.ml"
 
   | 21 ->
 # 34 "lexer.mll"
-        ( SEMICOLON )
+      ( SEMICOLON )
 # 716 "lexer.ml"
 
   | 22 ->
 # 35 "lexer.mll"
-        ( EOF )
+      ( EOF )
 # 721 "lexer.ml"
 
   | 23 ->
 # 36 "lexer.mll"
-      ( raise (Error (Printf.sprintf "Invalid character: %s" (Lexing.lexeme lexbuf))) )
+    ( raise (Error (Printf.sprintf "Invalid character: %s" (Lexing.lexeme lexbuf))) )
 # 726 "lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
@@ -729,3 +729,8 @@ let
 
 ;;
 
+# 38 "lexer.mll"
+ 
+let token = tokenize  (* Ajout de l'alias token -> tokenize *)
+
+# 737 "lexer.ml"

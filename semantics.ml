@@ -35,30 +35,16 @@ let rec check_scope_expression env = function
       check_scope_expression env e2
   | EUnaryOp (_, e) ->
       check_scope_expression env e
-  | EArray exprs ->
-      List.iter (check_scope_expression env) exprs
-  | EObject fields ->
-      List.iter (fun (_, e) -> check_scope_expression env e) fields
-  | EAccess (e, _) ->
-      check_scope_expression env e
-  | ECall (e, args) ->
-      check_scope_expression env e;
-      List.iter (check_scope_expression env) args
 
 (* Check scope for instructions *)
 let rec check_scope_instruction env = function
   | IExpr e ->
       check_scope_expression env e;
       env
-  | IVarDecl (name, typ, expr_opt) ->
-      let env = 
-        match expr_opt with
-        | Some expr -> 
-            check_scope_expression env expr;
-            add_variable env name typ
-        | None -> 
-            add_variable env name typ
-      in
+  | IReturn expr_opt ->
+      (match expr_opt with
+       | Some expr -> check_scope_expression env expr
+       | None -> ());
       env
   | IBlock instrs ->
       List.fold_left (fun acc instr -> check_scope_instruction acc instr) env instrs
@@ -71,11 +57,6 @@ let rec check_scope_instruction env = function
   | IWhile (cond, body) ->
       check_scope_expression env cond;
       check_scope_instruction env body
-  | IReturn expr_opt ->
-      (match expr_opt with
-       | Some expr -> check_scope_expression env expr
-       | None -> ());
-      env
 
 (* Check scope for declarations *)
 let check_scope_declaration env = function
@@ -88,17 +69,6 @@ let check_scope_declaration env = function
           params
       in
       List.fold_left (fun acc instr -> check_scope_instruction acc instr) env body
-  | DVar (name, typ, expr_opt) ->
-      let env =
-        match expr_opt with
-        | Some expr -> 
-            check_scope_expression env expr;
-            add_variable env name typ
-        | None -> 
-            add_variable env name typ
-      in
-      env
-  | DTypeAlias _ -> env
 
 (* Infer the type of an expression *)
 let rec infer_type env = function
@@ -121,21 +91,8 @@ let rec infer_type env = function
       let t = infer_type env e in
       if t = TInt then TInt
       else raise (TypeError "Unary minus requires integer")
-  | EArray [] -> TArray TAny
-  | EArray (e::es) ->
-      let t = infer_type env e in
-      if List.for_all (fun e' -> infer_type env e' = t) es
-      then TArray t
-      else raise (TypeError "Array elements must have same type")
-  | EObject fields ->
-      TObject (List.map (fun (name, expr) -> (name, infer_type env expr)) fields)
-  | EAccess (e, field) ->
-      (match infer_type env e with
-       | TObject fields ->
-           (try List.assoc field fields
-            with Not_found -> raise (TypeError ("Unknown field: " ^ field)))
-       | _ -> raise (TypeError "Field access requires object"))
-  | ECall (_, _) -> TAny  (* Simplified type checking for function calls *)
+  | EUnaryOp (_, _) ->
+      raise (TypeError "Unknown unary operator")
 
 (* Type check a program *)
 let type_check_program program =
@@ -152,8 +109,7 @@ let type_check_program program =
                | Some expected when t <> expected ->
                    raise (TypeError "Return type mismatch")
                | _ -> ())
-          | _ -> ()) body
-    | _ -> ()) program
+          | _ -> ()) body) program
 
 (* Check scope for the entire program *)
 let check_scope_program program =
